@@ -471,20 +471,7 @@ function DataCenterModal({ onClose, onRefresh }) {
           return isNaN(n) ? 0 : n;
         };
 
-        // Utilidad para buscar columnas con validación de tipo para evitar colisiones (ej. Programa vs Programado)
-        const findCol = (row, names, isNumeric = false) => {
-          const keys = Object.keys(row);
-          let foundValue = null;
-          let foundKeyName = null;
-
-          for (let targetName of names) {
-            const target = targetName.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            
-            // Buscar una coincidencia que cumpla el criterio de tipo
-            const match = keys.find(k => {
-              const key = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-              const isMatch = key.includes(target) || target.includes(key);
-          // 2. Mapear e insertar todas las metas
+        // 2. Mapear e insertar todas las metas
         const newMetas = allRawData
           .filter(row => {
             const hasInfo = Object.values(row).some(v => v !== null && v !== "" && v !== undefined);
