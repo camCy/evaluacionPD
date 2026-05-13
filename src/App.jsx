@@ -411,7 +411,8 @@ function MetaModal({ meta, isAdmin, onClose, onSave }) {
 
 /* ─── OVERRIDE MODAL ─────────────────────────────────────── */
 function OverrideModal({ data, onClose, onSave }) {
-  const [val, setVal] = useState((data.field === 'pct2025' ? data.pct2025 : data.pctCuat) ?? 0);
+  const initialVal = (data.field === 'pct2025' ? data.pct2025 : data.pctCuat) ?? 0;
+  const [val, setVal] = useState(parseFloat(Number(initialVal).toFixed(1)));
   return (
     <motion.div className="modal-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
       <motion.div className="modal-sheet" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 320 }} onClick={e => e.stopPropagation()}>
