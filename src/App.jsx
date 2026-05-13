@@ -452,6 +452,7 @@ function DataCenterModal({ onClose, onRefresh }) {
 
         // 2. Mapear e insertar
         const newMetas = data.map((row, idx) => ({
+          id: idx + 1, // REQUERIDO: La tabla no tiene ID autoincrementable
           codigo: row["CÓDIGO META"] || `N/A-${idx}`,
           referencia: row["REFERENCIA"] || "",
           programado2025: parseFloat(row["PROGRAMADO 2025"]) || 0,
@@ -473,7 +474,10 @@ function DataCenterModal({ onClose, onRefresh }) {
         for (let i = 0; i < newMetas.length; i += 50) {
           const chunk = newMetas.slice(i, i + 50);
           const { error: insErr } = await sb.from('metas').insert(chunk);
-          if (insErr) throw insErr;
+          if (insErr) {
+            console.error("Error Supabase:", insErr);
+            throw new Error(`Error en bloque ${i}: ${insErr.message} (${insErr.details})`);
+          }
           setLog(`Insertando: ${Math.min(i + 50, newMetas.length)} / ${newMetas.length}`);
         }
 
