@@ -492,35 +492,47 @@ function DataCenterModal({ onClose, onRefresh }) {
             return hasInfo && !cod.includes("TOTAL") && !cod.includes("RESUMEN");
           })
           .map((row, idx) => {
-            const prog25 = parseNum(findCol(row, "PROGRAMADO 2025", "META 2025", "PLANIFICADO 2025"));
-            const logr25 = parseNum(findCol(row, "LOGRO 2025", "EJECUTADO 2025", "AVANCE 2025", "REAL 2025"));
-            const rawPct25 = findCol(row, "% CUMPLIMIENTO 2025", "CUMPLIMIENTO VIGENCIA", "PCT 2025");
+            // 1. Extraer valores con búsqueda ultra-flexible
+            const prog25 = parseNum(findCol(row, "PROGRAMADO 2025", "META 2025", "PLANIFICADO 2025", "PROG 2025", "2025"));
+            const logr25 = parseNum(findCol(row, "LOGRO 2025", "EJECUTADO 2025", "AVANCE 2025", "REAL 2025", "LOGRO VIGENCIA", "VIGENCIA 2025"));
+            const rawPct25 = findCol(row, "% CUMPLIMIENTO 2025", "CUMPLIMIENTO VIGENCIA", "PCT 2025", "% 2025", "CUMPLIMIENTO 2025");
 
-            const progCuat = parseNum(findCol(row, "META CUATRIENIO", "TOTAL PROGRAMADO", "META TOTAL"));
-            const logrCuat = parseNum(findCol(row, "LOGRO CUATRIENIO", "AVANCE TOTAL", "REAL TOTAL"));
-            const rawPctCuat = findCol(row, "% CUMPLIMIENTO CUATRIENIO", "CUMPLIMIENTO TOTAL", "PCT TOTAL");
+            const progCuat = parseNum(findCol(row, "META CUATRIENIO", "TOTAL PROGRAMADO", "META TOTAL", "2024-2027", "CUATRIENIO"));
+            const logrCuat = parseNum(findCol(row, "LOGRO CUATRIENIO", "AVANCE TOTAL", "REAL TOTAL", "LOGRO TOTAL"));
+            const rawPctCuat = findCol(row, "% CUMPLIMIENTO CUATRIENIO", "CUMPLIMIENTO TOTAL", "PCT TOTAL", "% CUATRIENIO");
 
+            // 2. Determinar porcentaje de Vigencia 2025 (Priorizar % del excel, luego calcular)
             let v25 = 0;
-            if (rawPct25 !== null && rawPct25 !== undefined) {
+            const foundPct25 = rawPct25 !== null && rawPct25 !== undefined;
+            if (foundPct25) {
               v25 = parseNum(rawPct25);
               if (v25 <= 1.1 && v25 > 0) v25 *= 100;
-            } else if (prog25 > 0) v25 = (logr25 / prog25) * 100;
-            else if (logr25 > 0) v25 = 100;
+            } else if (prog25 > 0) {
+              v25 = (logr25 / prog25) * 100;
+            } else if (logr25 > 0) {
+              v25 = 100;
+            }
 
+            // 3. Determinar porcentaje de Cuatrienio
             let vCuat = 0;
-            if (rawPctCuat !== null && rawPctCuat !== undefined) {
+            const foundPctCuat = rawPctCuat !== null && rawPctCuat !== undefined;
+            if (foundPctCuat) {
               vCuat = parseNum(rawPctCuat);
               if (vCuat <= 1.1 && vCuat > 0) vCuat *= 100;
-            } else if (progCuat > 0) vCuat = (logrCuat / progCuat) * 100;
-            else if (logrCuat > 0) vCuat = 100;
+            } else if (progCuat > 0) {
+              vCuat = (logrCuat / progCuat) * 100;
+            } else if (logrCuat > 0) {
+              vCuat = 100;
+            }
 
             // Priorizar columna de secretaría, si no, usar nombre de la pestaña
-            const sec = findCol(row, "SECRETARIA", "DEPENDENCIA", "ENTIDAD", "DIRECCION") || row._sheetName || "GENERAL";
+            const sec = findCol(row, "SECRETARIA", "DEPENDENCIA", "ENTIDAD", "DIRECCION", "DIRECCION/SECRETARIA") || row._sheetName || "GENERAL";
+            const dimension = findCol(row, "DIMENSION", "EJE", "ESTRATEGICO", "LINEA ESTRATEGICA") || "GENERAL";
 
             return {
               id: idx + 1,
-              codigo: findCol(row, "CODIGO META", "CODIGO", "META") || `M-${idx}`,
-              referencia: findCol(row, "REFERENCIA", "REF") || "",
+              codigo: findCol(row, "CODIGO META", "CODIGO", "META", "ID") || `M-${idx}`,
+              referencia: findCol(row, "REFERENCIA", "REF", "DESCRIPCION") || "",
               programado2025: prog25,
               linea_base: String(findCol(row, "LINEA BASE", "BASE") || ""),
               logro2025: logr25,
@@ -528,7 +540,7 @@ function DataCenterModal({ onClose, onRefresh }) {
               meta_cuatrienio: progCuat,
               pct_cuatrienio: vCuat,
               secretaria: sec,
-              dimension: findCol(row, "DIMENSION", "EJE", "ESTRATEGICO") || "GENERAL",
+              dimension: dimension,
               programa: findCol(row, "PROGRAMA") || "",
               objetivo: findCol(row, "OBJETIVO") || "",
               sector: findCol(row, "SECTOR") || "",
