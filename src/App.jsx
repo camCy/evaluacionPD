@@ -450,25 +450,40 @@ function DataCenterModal({ onClose, onRefresh }) {
 
         setLog(`Insertando nuevas metas...`);
 
+        // Función para buscar columnas sin importar mayúsculas/minúsculas o tildes
+        const findCol = (row, ...names) => {
+          const keys = Object.keys(row);
+          for (let name of names) {
+            const found = keys.find(k => k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+            if (found) return row[found];
+          }
+          return null;
+        };
+
         // 2. Mapear e insertar
-        const newMetas = data.map((row, idx) => ({
-          id: idx + 1, // REQUERIDO: La tabla no tiene ID autoincrementable
-          codigo: row["CÓDIGO META"] || `N/A-${idx}`,
-          referencia: row["REFERENCIA"] || "",
-          programado2025: parseFloat(row["PROGRAMADO 2025"]) || 0,
-          linea_base: String(row["LINEA BASE"] || ""),
-          logro2025: parseFloat(row["LOGRO 2025"]) || 0,
-          pct_cumplimiento2025: row["VIGENCIA 2025"] ? (parseFloat(row["VIGENCIA 2025"]) * (parseFloat(row["VIGENCIA 2025"]) <= 1 ? 100 : 1)) : 0,
-          meta_cuatrienio: parseFloat(row["META CUATRIENIO"]) || 0,
-          pct_cuatrienio: row["2024-2027"] ? (parseFloat(row["2024-2027"]) * (parseFloat(row["2024-2027"]) <= 1 ? 100 : 1)) : 0,
-          secretaria: row["SECRETARÍA"] || "SIN ASIGNAR",
-          dimension: row["DIMENSIÓN"] || "GENERAL",
-          programa: row["PROGRAMA"] || "",
-          objetivo: row["OBJETIVO"] || "",
-          sector: row["SECTOR"] || "",
-          producto: row["META PRODUCTO"] || "",
-          indicador: row["INDICADOR DE PRODUCTO"] || ""
-        }));
+        const newMetas = data.map((row, idx) => {
+          const v25 = findCol(row, "VIGENCIA 2025", "VIGENCIA 2025 %", "CUMPLIMIENTO VIGENCIA 2025");
+          const vCuat = findCol(row, "2024-2027", "CUATRIENIO", "CUMPLIMIENTO CUATRIENIO");
+          
+          return {
+            id: idx + 1,
+            codigo: findCol(row, "CODIGO META", "CODIGO") || `N/A-${idx}`,
+            referencia: findCol(row, "REFERENCIA") || "",
+            programado2025: parseFloat(findCol(row, "PROGRAMADO 2025")) || 0,
+            linea_base: String(findCol(row, "LINEA BASE") || ""),
+            logro2025: parseFloat(findCol(row, "LOGRO 2025")) || 0,
+            pct_cumplimiento2025: v25 ? (parseFloat(v25) * (parseFloat(v25) <= 1.5 ? 100 : 1)) : 0,
+            meta_cuatrienio: parseFloat(findCol(row, "META CUATRIENIO")) || 0,
+            pct_cuatrienio: vCuat ? (parseFloat(vCuat) * (parseFloat(vCuat) <= 1.5 ? 100 : 1)) : 0,
+            secretaria: findCol(row, "SECRETARIA") || "SIN ASIGNAR",
+            dimension: findCol(row, "DIMENSION") || "GENERAL",
+            programa: findCol(row, "PROGRAMA") || "",
+            objetivo: findCol(row, "OBJETIVO") || "",
+            sector: findCol(row, "SECTOR") || "",
+            producto: findCol(row, "META PRODUCTO", "PRODUCTO") || "",
+            indicador: findCol(row, "INDICADOR DE PRODUCTO", "INDICADOR") || ""
+          };
+        });
 
         // Insertar en bloques de 50 para evitar errores de payload
         for (let i = 0; i < newMetas.length; i += 50) {
