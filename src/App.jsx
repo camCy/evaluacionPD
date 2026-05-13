@@ -178,7 +178,7 @@ function Dashboard({ metas, overrides, isAdmin, onEdit }) {
                 <span className={`avg-pct-badge ${it.cls}`}>{it.val.toFixed(1)}%</span>
               </div>
               <div className="avg-progress-wrapper">
-                <motion.div className={`avg-progress-bar ${it.barCls}`} initial={{ width: 0 }} animate={{ width: `${Math.min(it.val, 100)}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} />
+                <motion.div className={`avg-progress-bar ${it.barCls} status-${it.cls}`} initial={{ width: 0 }} animate={{ width: `${Math.min(it.val, 100)}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} />
               </div>
             </div>
           ))}

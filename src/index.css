@@ -219,7 +219,10 @@ input, select { font-family: inherit; }
 .avg-pct-badge.blue { color: var(--blue-600); }
 
 .avg-progress-wrapper { height: 10px; background: var(--gray-100); border-radius: var(--r-full); overflow: hidden; }
-.avg-progress-bar { height: 100%; border-radius: var(--r-full); background: linear-gradient(90deg, var(--green-400), var(--green-600)); position: relative; }
+.avg-progress-bar { height: 100%; border-radius: var(--r-full); position: relative; transition: background var(--t-base); }
+.avg-progress-bar.status-green { background: linear-gradient(90deg, var(--green-400), var(--green-600)); }
+.avg-progress-bar.status-yellow { background: linear-gradient(90deg, var(--yellow-400), var(--yellow-600)); }
+.avg-progress-bar.status-red { background: linear-gradient(90deg, var(--red-500), var(--red-600)); }
 .avg-progress-bar.cuatrienio { background: linear-gradient(90deg, #60a5fa, var(--blue-600)); }
 
 .admin-cursor { cursor: pointer; }
