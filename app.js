@@ -3,7 +3,7 @@
 // Supabase Config
 const SUPABASE_URL = "https://aurtxbfckcdqrhtjufpt.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1cnR4YmZja2NkcXJodGp1ZnB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MjAyMTUsImV4cCI6MjA5NDE5NjIxNX0.RTzh2C2OwCM4DVuHmWZhf-Y6wgcBcumUZclWvXT-C9s";
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // State
 let currentData = [];
@@ -25,7 +25,7 @@ async function loadData() {
   showToast('Cargando datos desde Supabase...', 'info');
   
   // Fetch Metas
-  const { data: metas, error: metasError } = await supabase.from('metas').select('*').order('id', { ascending: true });
+  const { data: metas, error: metasError } = await sb.from('metas').select('*').order('id', { ascending: true });
   if (metasError) {
     console.error('Error metas:', metasError);
     showToast('Error al cargar metas', 'error');
@@ -40,7 +40,7 @@ async function loadData() {
   }
 
   // Fetch Overrides
-  const { data: overData, error: overError } = await supabase.from('overrides').select('*');
+  const { data: overData, error: overError } = await sb.from('overrides').select('*');
   if (overError) {
     console.error('Error overrides:', overError);
   } else {
@@ -61,7 +61,7 @@ async function loadData() {
 }
 
 async function persistMeta(m) {
-  const { error } = await supabase.from('metas').upsert({
+  const { error } = await sb.from('metas').upsert({
     id: m.id,
     codigo: m.codigo,
     referencia: m.referencia,
@@ -88,7 +88,7 @@ async function persistMeta(m) {
 }
 
 async function persistOverride(id, type, pct2025, pctCuat) {
-  const { error } = await supabase.from('overrides').upsert({
+  const { error } = await sb.from('overrides').upsert({
     id: id,
     type: type,
     pct2025: pct2025,
@@ -247,7 +247,7 @@ window.editSecretaria = async function(name) {
   if (newVal !== null) {
     if (newVal === "") {
       delete overrides.secretarias[name];
-      await supabase.from('overrides').delete().eq('id', name);
+      await sb.from('overrides').delete().eq('id', name);
     } else {
       const val = parseFloat(newVal);
       if (!isNaN(val)) {
