@@ -444,10 +444,17 @@ function DataCenterModal({ onClose, onRefresh }) {
       reader.onload = async (evt) => {
         const bstr = evt.target.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsname = wb.SheetNames[0];
-        const data = XLSX.utils.sheet_to_json(wb.Sheets[wsname]);
+        
+        let allRawData = [];
+        // RECORRER TODAS LAS HOJAS (DIRECCIONES/SECRETARÍAS)
+        wb.SheetNames.forEach(sheetName => {
+          const sheetData = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
+          // Guardamos el nombre de la hoja como referencia por si la fila no trae la secretaría
+          const withSheetRef = sheetData.map(row => ({ ...row, _sheetName: sheetName }));
+          allRawData = [...allRawData, ...withSheetRef];
+        });
 
-        setLog(`Limpiando base de datos (${data.length} filas detectadas)...`);
+        setLog(`Limpiando base de datos y procesando ${allRawData.length} registros en ${wb.SheetNames.length} hojas...`);
         
         // 1. Limpiar tablas
         const { error: delMetasErr } = await sb.from('metas').delete().neq('id', 0);
@@ -455,9 +462,7 @@ function DataCenterModal({ onClose, onRefresh }) {
 
         if (delMetasErr || delOverErr) throw new Error("Error al limpiar la base de datos");
 
-        setLog(`Insertando nuevas metas...`);
-
-        // Función para limpiar y convertir números (maneja "94%", "94,5", etc.)
+        // Utilidades internas
         const parseNum = (val) => {
           if (val === null || val === undefined || val === '') return 0;
           if (typeof val === 'number') return val;
@@ -466,29 +471,27 @@ function DataCenterModal({ onClose, onRefresh }) {
           return isNaN(n) ? 0 : n;
         };
 
-        // Función para buscar columnas sin importar tildes, espacios o mayúsculas
         const findCol = (row, ...names) => {
           const keys = Object.keys(row);
           for (let name of names) {
-            const normalizedTarget = name.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const target = name.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             const foundKey = keys.find(k => {
-              const normalizedKey = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-              return normalizedKey.includes(normalizedTarget) || normalizedTarget.includes(normalizedKey);
+              const key = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+              return key.includes(target) || target.includes(key);
             });
             if (foundKey) return row[foundKey];
           }
           return null;
         };
 
-        // 2. Mapear e insertar
-        const newMetas = data
+        // 2. Mapear e insertar todas las metas
+        const newMetas = allRawData
           .filter(row => {
-            // Filtrar filas vacías o que sean "TOTALES" (ensucian el promedio)
-            const cod = String(findCol(row, "CODIGO META", "CODIGO") || "").toUpperCase();
-            return cod && !cod.includes("TOTAL");
+            const cod = String(findCol(row, "CODIGO META", "CODIGO", "META") || "").toUpperCase();
+            const hasInfo = Object.values(row).some(v => v !== null && v !== "" && v !== undefined);
+            return hasInfo && !cod.includes("TOTAL") && !cod.includes("RESUMEN");
           })
           .map((row, idx) => {
-            // 1. Extraer valores base
             const prog25 = parseNum(findCol(row, "PROGRAMADO 2025", "META 2025", "PLANIFICADO 2025"));
             const logr25 = parseNum(findCol(row, "LOGRO 2025", "EJECUTADO 2025", "AVANCE 2025", "REAL 2025"));
             const rawPct25 = findCol(row, "% CUMPLIMIENTO 2025", "CUMPLIMIENTO VIGENCIA", "PCT 2025");
@@ -497,31 +500,26 @@ function DataCenterModal({ onClose, onRefresh }) {
             const logrCuat = parseNum(findCol(row, "LOGRO CUATRIENIO", "AVANCE TOTAL", "REAL TOTAL"));
             const rawPctCuat = findCol(row, "% CUMPLIMIENTO CUATRIENIO", "CUMPLIMIENTO TOTAL", "PCT TOTAL");
 
-            // 2. Determinar porcentaje de Vigencia 2025
             let v25 = 0;
             if (rawPct25 !== null && rawPct25 !== undefined) {
               v25 = parseNum(rawPct25);
               if (v25 <= 1.1 && v25 > 0) v25 *= 100;
-            } else if (prog25 > 0) {
-              v25 = (logr25 / prog25) * 100;
-            } else if (logr25 > 0) {
-              v25 = 100; // Si no había meta pero se logró algo, es 100%
-            }
+            } else if (prog25 > 0) v25 = (logr25 / prog25) * 100;
+            else if (logr25 > 0) v25 = 100;
 
-            // 3. Determinar porcentaje de Cuatrienio
             let vCuat = 0;
             if (rawPctCuat !== null && rawPctCuat !== undefined) {
               vCuat = parseNum(rawPctCuat);
               if (vCuat <= 1.1 && vCuat > 0) vCuat *= 100;
-            } else if (progCuat > 0) {
-              vCuat = (logrCuat / progCuat) * 100;
-            } else if (logrCuat > 0) {
-              vCuat = 100;
-            }
+            } else if (progCuat > 0) vCuat = (logrCuat / progCuat) * 100;
+            else if (logrCuat > 0) vCuat = 100;
+
+            // Priorizar columna de secretaría, si no, usar nombre de la pestaña
+            const sec = findCol(row, "SECRETARIA", "DEPENDENCIA", "ENTIDAD", "DIRECCION") || row._sheetName || "GENERAL";
 
             return {
               id: idx + 1,
-              codigo: findCol(row, "CODIGO META", "CODIGO", "META"),
+              codigo: findCol(row, "CODIGO META", "CODIGO", "META") || `M-${idx}`,
               referencia: findCol(row, "REFERENCIA", "REF") || "",
               programado2025: prog25,
               linea_base: String(findCol(row, "LINEA BASE", "BASE") || ""),
@@ -529,7 +527,7 @@ function DataCenterModal({ onClose, onRefresh }) {
               pct_cumplimiento2025: v25,
               meta_cuatrienio: progCuat,
               pct_cuatrienio: vCuat,
-              secretaria: findCol(row, "SECRETARIA", "DEPENDENCIA", "ENTIDAD") || "SIN ASIGNAR",
+              secretaria: sec,
               dimension: findCol(row, "DIMENSION", "EJE", "ESTRATEGICO") || "GENERAL",
               programa: findCol(row, "PROGRAMA") || "",
               objetivo: findCol(row, "OBJETIVO") || "",
