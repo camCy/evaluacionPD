@@ -471,81 +471,93 @@ function DataCenterModal({ onClose, onRefresh }) {
           return isNaN(n) ? 0 : n;
         };
 
-        const findCol = (row, ...names) => {
+        // Utilidad para buscar columnas con validación de tipo para evitar colisiones (ej. Programa vs Programado)
+        const findCol = (row, names, isNumeric = false) => {
           const keys = Object.keys(row);
-          for (let name of names) {
-            const target = name.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            const foundKey = keys.find(k => {
+          let foundValue = null;
+          let foundKeyName = null;
+
+          for (let targetName of names) {
+            const target = targetName.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            
+            // Buscar una coincidencia que cumpla el criterio de tipo
+            const match = keys.find(k => {
               const key = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-              return key.includes(target) || target.includes(key);
+              const isMatch = key.includes(target) || target.includes(key);
+              if (!isMatch) return false;
+              
+              if (isNumeric) {
+                const val = row[k];
+                return typeof val === 'number' || (typeof val === 'string' && !isNaN(parseFloat(val.replace(',', '.'))));
+              }
+              return true;
             });
-            if (foundKey) return row[foundKey];
+
+            if (match) {
+              foundValue = row[match];
+              foundKeyName = match;
+              break;
+            }
           }
-          return null;
+          return foundValue;
         };
 
         // 2. Mapear e insertar todas las metas
         const newMetas = allRawData
           .filter(row => {
-            const cod = String(findCol(row, "CODIGO META", "CODIGO", "META") || "").toUpperCase();
+            const cod = String(findCol(row, ["CODIGO META", "CODIGO", "META"], false) || "").toUpperCase();
             const hasInfo = Object.values(row).some(v => v !== null && v !== "" && v !== undefined);
             return hasInfo && !cod.includes("TOTAL") && !cod.includes("RESUMEN");
           })
           .map((row, idx) => {
-            // 1. Extraer valores con búsqueda ultra-flexible
-            const prog25 = parseNum(findCol(row, "PROGRAMADO 2025", "META 2025", "PLANIFICADO 2025", "PROG 2025", "2025"));
-            const logr25 = parseNum(findCol(row, "LOGRO 2025", "EJECUTADO 2025", "AVANCE 2025", "REAL 2025", "LOGRO VIGENCIA", "VIGENCIA 2025"));
-            const rawPct25 = findCol(row, "% CUMPLIMIENTO 2025", "CUMPLIMIENTO VIGENCIA", "PCT 2025", "% 2025", "CUMPLIMIENTO 2025");
+            // Buscamos específicamente columnas numéricas para los valores
+            const prog25 = parseNum(findCol(row, ["PROGRAMADO 2025", "META 2025", "PROGRAMADO"], true));
+            const logr25 = parseNum(findCol(row, ["LOGRO 2025", "EJECUTADO 2025", "AVANCE 2025", "LOGRO ME"], true));
+            
+            // Para el porcentaje, detectamos si hay duplicados (como en tu captura)
+            const keys = Object.keys(row);
+            const pctCols = keys.filter(k => k.toLowerCase().includes("porcenta") || k.toLowerCase().includes("pct"));
+            const rawPct25 = pctCols.length > 0 ? row[pctCols[0]] : null;
+            const rawPctCuat = pctCols.length > 1 ? row[pctCols[1]] : (pctCols.length > 0 ? row[pctCols[0]] : null);
 
-            const progCuat = parseNum(findCol(row, "META CUATRIENIO", "TOTAL PROGRAMADO", "META TOTAL", "2024-2027", "CUATRIENIO"));
-            const logrCuat = parseNum(findCol(row, "LOGRO CUATRIENIO", "AVANCE TOTAL", "REAL TOTAL", "LOGRO TOTAL"));
-            const rawPctCuat = findCol(row, "% CUMPLIMIENTO CUATRIENIO", "CUMPLIMIENTO TOTAL", "PCT TOTAL", "% CUATRIENIO");
+            const progCuat = parseNum(findCol(row, ["META CUATRIENIO", "META CUA", "TOTAL PROGRAMADO"], true));
+            const logrCuat = parseNum(findCol(row, ["LOGRO CUATRIENIO", "AVANCE TOTAL", "REAL TOTAL"], true));
 
-            // 2. Determinar porcentaje de Vigencia 2025 (Priorizar % del excel, luego calcular)
+            // Lógica de porcentajes
             let v25 = 0;
-            const foundPct25 = rawPct25 !== null && rawPct25 !== undefined;
-            if (foundPct25) {
+            if (rawPct25 !== null && rawPct25 !== undefined) {
               v25 = parseNum(rawPct25);
               if (v25 <= 1.1 && v25 > 0) v25 *= 100;
-            } else if (prog25 > 0) {
-              v25 = (logr25 / prog25) * 100;
-            } else if (logr25 > 0) {
-              v25 = 100;
-            }
+            } else if (prog25 > 0) v25 = (logr25 / prog25) * 100;
 
-            // 3. Determinar porcentaje de Cuatrienio
             let vCuat = 0;
-            const foundPctCuat = rawPctCuat !== null && rawPctCuat !== undefined;
-            if (foundPctCuat) {
+            if (rawPctCuat !== null && rawPctCuat !== undefined) {
               vCuat = parseNum(rawPctCuat);
               if (vCuat <= 1.1 && vCuat > 0) vCuat *= 100;
-            } else if (progCuat > 0) {
-              vCuat = (logrCuat / progCuat) * 100;
-            } else if (logrCuat > 0) {
-              vCuat = 100;
-            }
+            } else if (progCuat > 0) vCuat = (logrCuat / progCuat) * 100;
 
-            // Priorizar columna de secretaría, si no, usar nombre de la pestaña
-            const sec = findCol(row, "SECRETARIA", "DEPENDENCIA", "ENTIDAD", "DIRECCION", "DIRECCION/SECRETARIA") || row._sheetName || "GENERAL";
-            const dimension = findCol(row, "DIMENSION", "EJE", "ESTRATEGICO", "LINEA ESTRATEGICA") || "GENERAL";
+            // Datos de texto (ignoramos validación numérica)
+            const sec = findCol(row, ["SECRETARIA", "DEPENDENCIA", "ENTIDAD", "DIRECCION"], false) || row._sheetName || "GENERAL";
+            const dim = findCol(row, ["DIMENSION", "EJE", "ESTRATEGICO"], false) || "GENERAL";
+            const progName = findCol(row, ["PROGRAMA"], false) || "";
 
             return {
               id: idx + 1,
-              codigo: findCol(row, "CODIGO META", "CODIGO", "META", "ID") || `M-${idx}`,
-              referencia: findCol(row, "REFERENCIA", "REF", "DESCRIPCION") || "",
+              codigo: findCol(row, ["CODIGO META", "CODIGO", "META"], false) || `M-${idx}`,
+              referencia: findCol(row, ["REFERENCIA", "REF", "DESCRIPCION"], false) || "",
               programado2025: prog25,
-              linea_base: String(findCol(row, "LINEA BASE", "BASE") || ""),
+              linea_base: String(findCol(row, ["LINEA BASE"], false) || ""),
               logro2025: logr25,
               pct_cumplimiento2025: v25,
               meta_cuatrienio: progCuat,
               pct_cuatrienio: vCuat,
               secretaria: sec,
-              dimension: dimension,
-              programa: findCol(row, "PROGRAMA") || "",
-              objetivo: findCol(row, "OBJETIVO") || "",
-              sector: findCol(row, "SECTOR") || "",
-              producto: findCol(row, "META PRODUCTO", "PRODUCTO", "NOMBRE") || "",
-              indicador: findCol(row, "INDICADOR DE PRODUCTO", "INDICADOR") || ""
+              dimension: dim,
+              programa: progName,
+              objetivo: findCol(row, ["OBJETIVO"], false) || "",
+              sector: findCol(row, ["SECTOR"], false) || "",
+              producto: findCol(row, ["META PRODUCTO", "PRODUCTO"], false) || "",
+              indicador: findCol(row, ["INDICADOR"], false) || ""
             };
           });
 
