@@ -279,7 +279,7 @@ function MetasView({ metas, onSelect, searchTerm, setSearchTerm, selectedSec, se
                 <div className={`status-pill ${sc}`} />
                 <div style={{ flex: 1 }}>
                   <div className="meta-codigo">{m.codigo}</div>
-                  <div className="meta-referencia">{m.referencia}</div>
+                  <div className="meta-referencia">{m.indicador || m.referencia}</div>
                 </div>
               </div>
               <div className="meta-card-footer">
@@ -342,6 +342,13 @@ function MetaModal({ meta, isAdmin, onClose, onSave }) {
           <div className="modal-highlight-box">
             <div className="modal-label">Objetivo</div>
             <div className="modal-text">{meta.objetivo}</div>
+          </div>
+        )}
+
+        {meta.indicador && (
+          <div className="modal-highlight-box" style={{ marginTop: '1rem', background: '#f0f9ff', borderColor: '#bae6fd' }}>
+            <div className="modal-label" style={{ color: '#0369a1' }}>Indicador de Producto</div>
+            <div className="modal-text">{meta.indicador}</div>
           </div>
         )}
 
@@ -489,15 +496,29 @@ function DataCenterModal({ onClose, onRefresh }) {
               normalizedRow[normK] = row[k];
             });
 
-            // Función de búsqueda sobre cabeceras ya normalizadas
+            // Función de extracción robusta (Busca exacta, luego parcial)
             const getVal = (targets, isNum = false) => {
+              const normKeys = Object.keys(normalizedRow);
               for (let t of targets) {
                 const normT = t.toLowerCase().trim().replace(/\s+/g, ' ').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                
+                // 1. Intento Exacto
                 if (normalizedRow[normT] !== undefined) {
                   const val = normalizedRow[normT];
                   if (isNum) {
                     const n = parseNum(val);
-                    // Si buscamos un número pero encontramos texto largo, probablemente es la columna equivocada (ej. Programa vs Programado)
+                    if (typeof val === 'string' && val.length > 20 && isNaN(parseFloat(val))) continue;
+                    return n;
+                  }
+                  return val;
+                }
+
+                // 2. Intento Parcial (Si la columna contiene el término, ej: "Indicador" match "Indicador de Producto")
+                const partialMatch = normKeys.find(k => k.includes(normT));
+                if (partialMatch) {
+                  const val = normalizedRow[partialMatch];
+                  if (isNum) {
+                    const n = parseNum(val);
                     if (typeof val === 'string' && val.length > 20 && isNaN(parseFloat(val))) continue;
                     return n;
                   }
@@ -510,7 +531,6 @@ function DataCenterModal({ onClose, onRefresh }) {
             const prog25 = getVal(["programado 2025", "meta 2025", "programado", "prog 2025"], true);
             const logr25 = getVal(["logro 2025", "ejecutado 2025", "avance 2025", "logro me", "real 2025"], true);
             
-            // Buscar porcentajes por patrón
             const normKeys = Object.keys(normalizedRow);
             const pctCols = normKeys.filter(k => k.includes("porcenta") || k.includes("pct") || k.includes("cumplimiento"));
             const rawPct25 = pctCols.length > 0 ? normalizedRow[pctCols[0]] : null;
@@ -549,8 +569,8 @@ function DataCenterModal({ onClose, onRefresh }) {
               objetivo: getVal(["objetivo"]) || "",
               sector: getVal(["sector"]) || "",
               producto: getVal(["meta producto", "producto"]) || "",
-              indicador: getVal(["indicador"]) || "",
-              datos_extra: row // GUARDAMOS TODA LA FILA ORIGINAL
+              indicador: getVal(["indicador de producto", "indicador de", "indicador"]) || "",
+              datos_extra: row
             };
           });
 
