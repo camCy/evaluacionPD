@@ -450,37 +450,58 @@ function DataCenterModal({ onClose, onRefresh }) {
 
         setLog(`Insertando nuevas metas...`);
 
-        // Función para buscar columnas sin importar mayúsculas/minúsculas o tildes
+        // Función para limpiar y convertir números (maneja "94%", "94,5", etc.)
+        const parseNum = (val) => {
+          if (val === null || val === undefined || val === '') return 0;
+          if (typeof val === 'number') return val;
+          const clean = String(val).replace('%', '').replace(',', '.').trim();
+          const n = parseFloat(clean);
+          return isNaN(n) ? 0 : n;
+        };
+
+        // Función para buscar columnas sin importar tildes, espacios o mayúsculas
         const findCol = (row, ...names) => {
           const keys = Object.keys(row);
           for (let name of names) {
-            const found = keys.find(k => k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
-            if (found) return row[found];
+            const normalizedTarget = name.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const foundKey = keys.find(k => {
+              const normalizedKey = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+              return normalizedKey.includes(normalizedTarget) || normalizedTarget.includes(normalizedKey);
+            });
+            if (foundKey) return row[foundKey];
           }
           return null;
         };
 
         // 2. Mapear e insertar
         const newMetas = data.map((row, idx) => {
-          const v25 = findCol(row, "VIGENCIA 2025", "VIGENCIA 2025 %", "CUMPLIMIENTO VIGENCIA 2025");
-          const vCuat = findCol(row, "2024-2027", "CUATRIENIO", "CUMPLIMIENTO CUATRIENIO");
+          // Extraer valores crudos
+          const rawV25 = findCol(row, "VIGENCIA 2025", "AVANCE 2025", "LOGRO 2025", "2025");
+          const rawCuat = findCol(row, "2024-2027", "CUATRIENIO", "AVANCE TOTAL", "TOTAL");
           
+          // Procesar porcentajes
+          let v25 = parseNum(rawV25);
+          if (v25 <= 1.5 && v25 > 0) v25 *= 100; // Convertir 0.94 -> 94%
+
+          let vCuat = parseNum(rawCuat);
+          if (vCuat <= 1.5 && vCuat > 0) vCuat *= 100;
+
           return {
             id: idx + 1,
-            codigo: findCol(row, "CODIGO META", "CODIGO") || `N/A-${idx}`,
-            referencia: findCol(row, "REFERENCIA") || "",
-            programado2025: parseFloat(findCol(row, "PROGRAMADO 2025")) || 0,
-            linea_base: String(findCol(row, "LINEA BASE") || ""),
-            logro2025: parseFloat(findCol(row, "LOGRO 2025")) || 0,
-            pct_cumplimiento2025: v25 ? (parseFloat(v25) * (parseFloat(v25) <= 1.5 ? 100 : 1)) : 0,
-            meta_cuatrienio: parseFloat(findCol(row, "META CUATRIENIO")) || 0,
-            pct_cuatrienio: vCuat ? (parseFloat(vCuat) * (parseFloat(vCuat) <= 1.5 ? 100 : 1)) : 0,
-            secretaria: findCol(row, "SECRETARIA") || "SIN ASIGNAR",
-            dimension: findCol(row, "DIMENSION") || "GENERAL",
+            codigo: findCol(row, "CODIGO META", "CODIGO", "META") || `N/A-${idx}`,
+            referencia: findCol(row, "REFERENCIA", "REF") || "",
+            programado2025: parseNum(findCol(row, "PROGRAMADO 2025", "META 2025")),
+            linea_base: String(findCol(row, "LINEA BASE", "BASE") || ""),
+            logro2025: parseNum(findCol(row, "LOGRO 2025", "EJECUTADO 2025")),
+            pct_cumplimiento2025: v25,
+            meta_cuatrienio: parseNum(findCol(row, "META CUATRIENIO", "META TOTAL")),
+            pct_cuatrienio: vCuat,
+            secretaria: findCol(row, "SECRETARIA", "DEPENDENCIA", "ENTIDAD") || "SIN ASIGNAR",
+            dimension: findCol(row, "DIMENSION", "EJE", "ESTRATEGICO") || "GENERAL",
             programa: findCol(row, "PROGRAMA") || "",
             objetivo: findCol(row, "OBJETIVO") || "",
             sector: findCol(row, "SECTOR") || "",
-            producto: findCol(row, "META PRODUCTO", "PRODUCTO") || "",
+            producto: findCol(row, "META PRODUCTO", "PRODUCTO", "NOMBRE") || "",
             indicador: findCol(row, "INDICADOR DE PRODUCTO", "INDICADOR") || ""
           };
         });
