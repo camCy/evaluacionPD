@@ -484,46 +484,54 @@ function DataCenterModal({ onClose, onRefresh }) {
             const match = keys.find(k => {
               const key = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
               const isMatch = key.includes(target) || target.includes(key);
-              if (!isMatch) return false;
-              
-              if (isNumeric) {
-                const val = row[k];
-                return typeof val === 'number' || (typeof val === 'string' && !isNaN(parseFloat(val.replace(',', '.'))));
-              }
-              return true;
-            });
-
-            if (match) {
-              foundValue = row[match];
-              foundKeyName = match;
-              break;
-            }
-          }
-          return foundValue;
-        };
-
-        // 2. Mapear e insertar todas las metas
+          // 2. Mapear e insertar todas las metas
         const newMetas = allRawData
           .filter(row => {
-            const cod = String(findCol(row, ["CODIGO META", "CODIGO", "META"], false) || "").toUpperCase();
             const hasInfo = Object.values(row).some(v => v !== null && v !== "" && v !== undefined);
-            return hasInfo && !cod.includes("TOTAL") && !cod.includes("RESUMEN");
+            return hasInfo;
           })
           .map((row, idx) => {
-            // Buscamos específicamente columnas numéricas para los valores
-            const prog25 = parseNum(findCol(row, ["PROGRAMADO 2025", "META 2025", "PROGRAMADO"], true));
-            const logr25 = parseNum(findCol(row, ["LOGRO 2025", "EJECUTADO 2025", "AVANCE 2025", "LOGRO ME"], true));
+            // NORMALIZACIÓN DE CABECERAS (Elimina espacios extra, saltos de línea, tildes)
+            const normalizedRow = {};
+            Object.keys(row).forEach(k => {
+              const normK = k.toLowerCase()
+                .trim()
+                .replace(/\s+/g, ' ') // Colapsa múltiples espacios a uno solo
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "");
+              normalizedRow[normK] = row[k];
+            });
+
+            // Función de búsqueda sobre cabeceras ya normalizadas
+            const getVal = (targets, isNum = false) => {
+              for (let t of targets) {
+                const normT = t.toLowerCase().trim().replace(/\s+/g, ' ').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                if (normalizedRow[normT] !== undefined) {
+                  const val = normalizedRow[normT];
+                  if (isNum) {
+                    const n = parseNum(val);
+                    // Si buscamos un número pero encontramos texto largo, probablemente es la columna equivocada (ej. Programa vs Programado)
+                    if (typeof val === 'string' && val.length > 20 && isNaN(parseFloat(val))) continue;
+                    return n;
+                  }
+                  return val;
+                }
+              }
+              return null;
+            };
+
+            const prog25 = getVal(["programado 2025", "meta 2025", "programado", "prog 2025"], true);
+            const logr25 = getVal(["logro 2025", "ejecutado 2025", "avance 2025", "logro me", "real 2025"], true);
             
-            // Para el porcentaje, detectamos si hay duplicados (como en tu captura)
-            const keys = Object.keys(row);
-            const pctCols = keys.filter(k => k.toLowerCase().includes("porcenta") || k.toLowerCase().includes("pct"));
-            const rawPct25 = pctCols.length > 0 ? row[pctCols[0]] : null;
-            const rawPctCuat = pctCols.length > 1 ? row[pctCols[1]] : (pctCols.length > 0 ? row[pctCols[0]] : null);
+            // Buscar porcentajes por patrón
+            const normKeys = Object.keys(normalizedRow);
+            const pctCols = normKeys.filter(k => k.includes("porcenta") || k.includes("pct") || k.includes("cumplimiento"));
+            const rawPct25 = pctCols.length > 0 ? normalizedRow[pctCols[0]] : null;
+            const rawPctCuat = pctCols.length > 1 ? normalizedRow[pctCols[1]] : (pctCols.length > 0 ? normalizedRow[pctCols[0]] : null);
 
-            const progCuat = parseNum(findCol(row, ["META CUATRIENIO", "META CUA", "TOTAL PROGRAMADO"], true));
-            const logrCuat = parseNum(findCol(row, ["LOGRO CUATRIENIO", "AVANCE TOTAL", "REAL TOTAL"], true));
+            const progCuat = getVal(["meta cuatrienio", "meta cua", "total programado", "2024-2027"], true);
+            const logrCuat = getVal(["logro cuatrienio", "avance total", "real total"], true);
 
-            // Lógica de porcentajes
             let v25 = 0;
             if (rawPct25 !== null && rawPct25 !== undefined) {
               v25 = parseNum(rawPct25);
@@ -536,28 +544,26 @@ function DataCenterModal({ onClose, onRefresh }) {
               if (vCuat <= 1.1 && vCuat > 0) vCuat *= 100;
             } else if (progCuat > 0) vCuat = (logrCuat / progCuat) * 100;
 
-            // Datos de texto (Prioridad absoluta a Entidad Responsable para agrupar bien)
-            const sec = findCol(row, ["ENTIDAD RESPONSABLE", "ENTIDAD R", "SECRETARIA", "DEPENDENCIA", "DIRECCION"], false) || row._sheetName || "GENERAL";
-            const dim = findCol(row, ["DIMENSION", "EJE", "ESTRATEGICO", "LINEA ESTRATEGICA"], false) || "GENERAL";
-            const progName = findCol(row, ["PROGRAMA"], false) || "";
+            const sec = getVal(["entidad responsable", "entidad r", "secretaria", "dependencia", "direccion"]) || row._sheetName || "GENERAL";
 
             return {
               id: idx + 1,
-              codigo: findCol(row, ["CODIGO META", "CODIGO INTERNO META", "CODIGO", "META"], false) || `M-${idx}`,
-              referencia: findCol(row, ["REFERENCIA", "REF", "DESCRIPCION"], false) || "",
+              codigo: getVal(["codigo meta", "codigo interno meta", "codigo", "meta", "id"]) || `M-${idx}`,
+              referencia: getVal(["referencia", "ref", "descripcion"]) || "",
               programado2025: prog25,
-              linea_base: String(findCol(row, ["LINEA BASE"], false) || ""),
+              linea_base: String(getVal(["linea base"]) || ""),
               logro2025: logr25,
               pct_cumplimiento2025: v25,
               meta_cuatrienio: progCuat,
               pct_cuatrienio: vCuat,
               secretaria: String(sec).toUpperCase().trim(),
-              dimension: String(dim).toUpperCase().trim(),
-              programa: progName,
-              objetivo: findCol(row, ["OBJETIVO"], false) || "",
-              sector: findCol(row, ["SECTOR"], false) || "",
-              producto: findCol(row, ["META PRODUCTO", "PRODUCTO"], false) || "",
-              indicador: findCol(row, ["INDICADOR"], false) || ""
+              dimension: String(getVal(["dimension", "eje", "estrategico", "linea estrategica"]) || "GENERAL").toUpperCase().trim(),
+              programa: getVal(["programa"]) || "",
+              objetivo: getVal(["objetivo"]) || "",
+              sector: getVal(["sector"]) || "",
+              producto: getVal(["meta producto", "producto"]) || "",
+              indicador: getVal(["indicador"]) || "",
+              datos_extra: row // GUARDAMOS TODA LA FILA ORIGINAL
             };
           });
 
