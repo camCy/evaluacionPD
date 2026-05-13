@@ -122,14 +122,21 @@ export default function App() {
 
 /* ─── DASHBOARD ─────────────────────────────────────────── */
 function Dashboard({ metas, overrides, isAdmin, onEdit }) {
-  const avg2025 = overrides.general.pct2025 ?? (metas.reduce((a, m) => a + (m.pct_cumplimiento2025 || 0), 0) / (metas.length || 1));
-  const avgCuat = overrides.general.pctCuat ?? (metas.reduce((a, m) => a + (m.pct_cuatrienio || 0), 0) / (metas.length || 1));
+  // Cálculo de promedios consolidados con tope del 100% por meta para no distorsionar el avance real
+  const calcAvg = (items, field) => {
+    if (!items.length) return 0;
+    const sum = items.reduce((acc, m) => acc + Math.min(m[field] || 0, 100), 0);
+    return sum / items.length;
+  };
+
+  const avg2025 = overrides.general.pct2025 ?? calcAvg(metas, 'pct_cumplimiento2025');
+  const avgCuat = overrides.general.pctCuat ?? calcAvg(metas, 'pct_cuatrienio');
 
   const bySecretaria = metas.reduce((acc, m) => { if (!acc[m.secretaria]) acc[m.secretaria] = []; acc[m.secretaria].push(m); return acc; }, {});
   const byDim = metas.reduce((acc, m) => { if (!acc[m.dimension]) acc[m.dimension] = []; acc[m.dimension].push(m); return acc; }, {});
 
   const secEntries = Object.entries(bySecretaria).map(([name, items]) => {
-    const calc = items.reduce((a, m) => a + (m.pct_cumplimiento2025 || 0), 0) / items.length;
+    const calc = calcAvg(items, 'pct_cumplimiento2025');
     const manual = overrides.secretarias[name]?.pct2025;
     return { name, count: items.length, avg: manual ?? calc, isManual: manual !== undefined };
   }).sort((a, b) => b.avg - a.avg);
@@ -474,37 +481,43 @@ function DataCenterModal({ onClose, onRefresh }) {
         };
 
         // 2. Mapear e insertar
-        const newMetas = data.map((row, idx) => {
-          // Extraer valores crudos
-          const rawV25 = findCol(row, "VIGENCIA 2025", "AVANCE 2025", "LOGRO 2025", "2025");
-          const rawCuat = findCol(row, "2024-2027", "CUATRIENIO", "AVANCE TOTAL", "TOTAL");
-          
-          // Procesar porcentajes
-          let v25 = parseNum(rawV25);
-          if (v25 <= 1.5 && v25 > 0) v25 *= 100; // Convertir 0.94 -> 94%
+        const newMetas = data
+          .filter(row => {
+            // Filtrar filas vacías o que sean "TOTALES" (ensucian el promedio)
+            const cod = String(findCol(row, "CODIGO META", "CODIGO") || "").toUpperCase();
+            return cod && !cod.includes("TOTAL");
+          })
+          .map((row, idx) => {
+            // Extraer valores crudos
+            const rawV25 = findCol(row, "VIGENCIA 2025", "AVANCE 2025", "LOGRO 2025", "2025");
+            const rawCuat = findCol(row, "2024-2027", "CUATRIENIO", "AVANCE TOTAL", "TOTAL");
+            
+            // Procesar porcentajes (sin redondear, precisión total)
+            let v25 = parseNum(rawV25);
+            if (v25 <= 1.1 && v25 > 0) v25 *= 100; // Si es decimal 0.94 -> 94
 
-          let vCuat = parseNum(rawCuat);
-          if (vCuat <= 1.5 && vCuat > 0) vCuat *= 100;
+            let vCuat = parseNum(rawCuat);
+            if (vCuat <= 1.1 && vCuat > 0) vCuat *= 100;
 
-          return {
-            id: idx + 1,
-            codigo: findCol(row, "CODIGO META", "CODIGO", "META") || `N/A-${idx}`,
-            referencia: findCol(row, "REFERENCIA", "REF") || "",
-            programado2025: parseNum(findCol(row, "PROGRAMADO 2025", "META 2025")),
-            linea_base: String(findCol(row, "LINEA BASE", "BASE") || ""),
-            logro2025: parseNum(findCol(row, "LOGRO 2025", "EJECUTADO 2025")),
-            pct_cumplimiento2025: v25,
-            meta_cuatrienio: parseNum(findCol(row, "META CUATRIENIO", "META TOTAL")),
-            pct_cuatrienio: vCuat,
-            secretaria: findCol(row, "SECRETARIA", "DEPENDENCIA", "ENTIDAD") || "SIN ASIGNAR",
-            dimension: findCol(row, "DIMENSION", "EJE", "ESTRATEGICO") || "GENERAL",
-            programa: findCol(row, "PROGRAMA") || "",
-            objetivo: findCol(row, "OBJETIVO") || "",
-            sector: findCol(row, "SECTOR") || "",
-            producto: findCol(row, "META PRODUCTO", "PRODUCTO", "NOMBRE") || "",
-            indicador: findCol(row, "INDICADOR DE PRODUCTO", "INDICADOR") || ""
-          };
-        });
+            return {
+              id: idx + 1,
+              codigo: findCol(row, "CODIGO META", "CODIGO", "META"),
+              referencia: findCol(row, "REFERENCIA", "REF") || "",
+              programado2025: parseNum(findCol(row, "PROGRAMADO 2025", "META 2025")),
+              linea_base: String(findCol(row, "LINEA BASE", "BASE") || ""),
+              logro2025: parseNum(findCol(row, "LOGRO 2025", "EJECUTADO 2025")),
+              pct_cumplimiento2025: v25,
+              meta_cuatrienio: parseNum(findCol(row, "META CUATRIENIO", "META TOTAL")),
+              pct_cuatrienio: vCuat,
+              secretaria: findCol(row, "SECRETARIA", "DEPENDENCIA", "ENTIDAD") || "SIN ASIGNAR",
+              dimension: findCol(row, "DIMENSION", "EJE", "ESTRATEGICO") || "GENERAL",
+              programa: findCol(row, "PROGRAMA") || "",
+              objetivo: findCol(row, "OBJETIVO") || "",
+              sector: findCol(row, "SECTOR") || "",
+              producto: findCol(row, "META PRODUCTO", "PRODUCTO", "NOMBRE") || "",
+              indicador: findCol(row, "INDICADOR DE PRODUCTO", "INDICADOR") || ""
+            };
+          });
 
         // Insertar en bloques de 50 para evitar errores de payload
         for (let i = 0; i < newMetas.length; i += 50) {
