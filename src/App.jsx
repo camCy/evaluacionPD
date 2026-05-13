@@ -4,7 +4,8 @@ import { LayoutDashboard, Target, BarChart3, Search, Filter, X, Edit3, Settings,
 import { motion, AnimatePresence } from 'framer-motion';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
-import ChartsView from './components/ChartsView.jsx';
+import logoImg from './assets/logo.png';
+import * as XLSX from 'xlsx';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
@@ -28,6 +29,7 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSec, setSelectedSec] = useState('');
   const [editingOverride, setEditingOverride] = useState(null);
+  const [isDataCenterOpen, setIsDataCenterOpen] = useState(false);
   const [isAdmin] = useState(new URLSearchParams(window.location.search).get('admin') === 'risaralda2025');
 
   useEffect(() => { fetchData(); }, []);
@@ -77,26 +79,31 @@ export default function App() {
     <div className="app-container">
       <header className="navbar">
         <div className="logo-container">
-          <img src="/logo.png" alt="Escudo" className="logo-img" />
+          <img src={logoImg} alt="Escudo" className="logo-img" />
           <div className="logo-text">
             <h1>Risaralda</h1>
             <p>Plan de Desarrollo 2024–2027</p>
           </div>
         </div>
-        {isAdmin && <div className="admin-badge"><Settings size={12} /> Editor</div>}
+        {isAdmin && (
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="admin-action-btn" onClick={() => setIsDataCenterOpen(true)}>
+              <Settings size={14} /> Datos
+            </button>
+            <div className="admin-badge">Editor</div>
+          </div>
+        )}
       </header>
 
       <div className="view-container">
         {view === 'dashboard' && <Dashboard metas={metas} overrides={overrides} isAdmin={isAdmin} onEdit={(id, type, p25, pc, f) => setEditingOverride({ id, type, pct2025: p25, pctCuat: pc, field: f })} />}
         {view === 'metas' && <MetasView metas={filteredMetas} onSelect={setSelectedMeta} searchTerm={searchTerm} setSearchTerm={setSearchTerm} selectedSec={selectedSec} setSelectedSec={setSelectedSec} secretarias={secretarias} />}
-        {view === 'charts' && <ChartsView metas={metas} overrides={overrides} />}
       </div>
 
       <nav className="bottom-nav">
         {[
           { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
           { id: 'metas', label: 'Metas', icon: <Target size={20} /> },
-          { id: 'charts', label: 'Reportes', icon: <BarChart3 size={20} /> },
         ].map(t => (
           <button key={t.id} className={`nav-tab ${view === t.id ? 'active' : ''}`} onClick={() => setView(t.id)}>
             {t.icon}<span>{t.label}</span>
@@ -107,6 +114,7 @@ export default function App() {
       <AnimatePresence>
         {selectedMeta && <MetaModal meta={selectedMeta} isAdmin={isAdmin} onClose={() => setSelectedMeta(null)} onSave={handleSaveMeta} />}
         {editingOverride && <OverrideModal data={editingOverride} onClose={() => setEditingOverride(null)} onSave={handleSaveOverride} />}
+        {isDataCenterOpen && <DataCenterModal onClose={() => setIsDataCenterOpen(false)} onRefresh={fetchData} />}
       </AnimatePresence>
     </div>
   );
@@ -404,6 +412,131 @@ function OverrideModal({ data, onClose, onSave }) {
         <div className="modal-actions">
           <button className="btn-primary" onClick={() => onSave(val)}>Guardar Ajuste</button>
           <button className="btn-secondary" onClick={onClose}>Cancelar</button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ─── DATA CENTER MODAL ───────────────────────────────────── */
+function DataCenterModal({ onClose, onRefresh }) {
+  const [status, setStatus] = useState('idle'); // idle, loading, success, error
+  const [log, setLog] = useState('');
+
+  const handleFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!window.confirm("¿Estás seguro? Esto eliminará TODA la información actual de la base de datos para cargar el nuevo archivo.")) return;
+
+    setStatus('loading');
+    setLog('Leyendo archivo Excel...');
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const data = XLSX.utils.sheet_to_json(wb.Sheets[wsname]);
+
+        setLog(`Limpiando base de datos (${data.length} filas detectadas)...`);
+        
+        // 1. Limpiar tablas
+        const { error: delMetasErr } = await sb.from('metas').delete().neq('id', 0);
+        const { error: delOverErr } = await sb.from('overrides').delete().neq('id', '0');
+
+        if (delMetasErr || delOverErr) throw new Error("Error al limpiar la base de datos");
+
+        setLog(`Insertando nuevas metas...`);
+
+        // 2. Mapear e insertar
+        const newMetas = data.map((row, idx) => ({
+          codigo: row["CÓDIGO META"] || `N/A-${idx}`,
+          referencia: row["REFERENCIA"] || "",
+          programado2025: parseFloat(row["PROGRAMADO 2025"]) || 0,
+          linea_base: String(row["LINEA BASE"] || ""),
+          logro2025: parseFloat(row["LOGRO 2025"]) || 0,
+          pct_cumplimiento2025: row["VIGENCIA 2025"] ? (parseFloat(row["VIGENCIA 2025"]) * (parseFloat(row["VIGENCIA 2025"]) <= 1 ? 100 : 1)) : 0,
+          meta_cuatrienio: parseFloat(row["META CUATRIENIO"]) || 0,
+          pct_cuatrienio: row["2024-2027"] ? (parseFloat(row["2024-2027"]) * (parseFloat(row["2024-2027"]) <= 1 ? 100 : 1)) : 0,
+          secretaria: row["SECRETARÍA"] || "SIN ASIGNAR",
+          dimension: row["DIMENSIÓN"] || "GENERAL",
+          programa: row["PROGRAMA"] || "",
+          objetivo: row["OBJETIVO"] || "",
+          sector: row["SECTOR"] || "",
+          producto: row["META PRODUCTO"] || "",
+          indicador: row["INDICADOR DE PRODUCTO"] || ""
+        }));
+
+        // Insertar en bloques de 50 para evitar errores de payload
+        for (let i = 0; i < newMetas.length; i += 50) {
+          const chunk = newMetas.slice(i, i + 50);
+          const { error: insErr } = await sb.from('metas').insert(chunk);
+          if (insErr) throw insErr;
+          setLog(`Insertando: ${Math.min(i + 50, newMetas.length)} / ${newMetas.length}`);
+        }
+
+        setLog("¡Importación exitosa!");
+        setStatus('success');
+        setTimeout(() => { onRefresh(); onClose(); }, 1500);
+      };
+      reader.readAsBinaryString(file);
+    } catch (err) {
+      console.error(err);
+      setLog(`Error: ${err.message}`);
+      setStatus('error');
+    }
+  };
+
+  return (
+    <motion.div className="modal-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <motion.div className="modal-sheet" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} onClick={e => e.stopPropagation()}>
+        <span className="modal-handle" />
+        <div className="modal-badge">Centro de Datos</div>
+        <div className="modal-title">Actualización Masiva</div>
+        <div className="modal-subtitle">Sube un archivo Excel para resetear el plan</div>
+        <div className="modal-divider" />
+        
+        <div style={{ padding: '1rem 0', textAlign: 'center' }}>
+          {status === 'idle' && (
+            <div className="upload-zone">
+              <label htmlFor="excel-upload" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <TrendingUp size={18} /> Seleccionar Excel (.xlsx)
+              </label>
+              <input id="excel-upload" type="file" accept=".xlsx, .xls" onChange={handleFile} style={{ display: 'none' }} />
+              <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '1rem' }}>
+                El archivo debe tener las columnas exactas del formato oficial.
+              </p>
+            </div>
+          )}
+
+          {status === 'loading' && (
+            <div style={{ padding: '2rem 0' }}>
+              <div className="spinner" style={{ margin: '0 auto 1rem' }} />
+              <p style={{ fontWeight: '700', color: 'var(--brand-green)' }}>{log}</p>
+            </div>
+          )}
+
+          {status === 'success' && (
+            <div style={{ color: '#16a34a', padding: '2rem 0' }}>
+              <Award size={48} style={{ marginBottom: '1rem' }} />
+              <p style={{ fontWeight: '800' }}>¡Base de datos actualizada!</p>
+            </div>
+          )}
+
+          {status === 'error' && (
+            <div style={{ color: '#dc2626', padding: '2rem 0' }}>
+              <AlertTriangle size={48} style={{ marginBottom: '1rem' }} />
+              <p style={{ fontWeight: '800' }}>Falló la importación</p>
+              <p style={{ fontSize: '0.8rem' }}>{log}</p>
+              <button className="btn-secondary" style={{ marginTop: '1rem' }} onClick={() => setStatus('idle')}>Reintentar</button>
+            </div>
+          )}
+        </div>
+
+        <div className="modal-actions">
+          <button className="btn-secondary" onClick={onClose} disabled={status === 'loading'}>Cerrar</button>
         </div>
       </motion.div>
     </motion.div>
