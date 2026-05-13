@@ -11,6 +11,7 @@ let overrides = { general: {}, secretarias: {} };
 let currentView = 'dashboard';
 let charts = {};
 let isAdmin = new URLSearchParams(window.location.search).get('admin') === 'risaralda2025';
+if (isAdmin) document.body.classList.add('is-admin');
 
 // Helpers
 function getStatusClass(pct) { return pct >= 85 ? 'green' : pct >= 50 ? 'yellow' : 'red'; }
@@ -217,15 +218,11 @@ function renderSecretariaBars() {
 
   container.innerHTML = entries.map(e => {
     const sc = getStatusClass(e.avg);
-    const labelHtml = isAdmin ? 
-      `<span onclick="event.stopPropagation(); window.editSecretaria('${e.name}')" title="Ajustar manualmente" style="cursor:pointer">
-        ${shortName(e.name)} ${e.isManual ? '⚠️' : ''}
-      </span>` :
-      `<span>${shortName(e.name)}</span>`;
-
     return `<div class="sec-bar-item">
       <div class="sec-bar-label">
-        ${labelHtml}
+        <span onclick="event.stopPropagation(); if(isAdmin) window.editSecretaria('${e.name}')">
+          ${shortName(e.name)} <span class="admin-only">${e.isManual ? '⚠️' : '(Ajustar)'}</span>
+        </span>
         <span class="sec-bar-pct" style="color:${getStatusColor(e.avg)}">${e.avg.toFixed(1)}%</span>
       </div>
       <div class="sec-bar-track" onclick="event.stopPropagation(); window.openSecretaria('${e.name}')">
@@ -356,10 +353,10 @@ function renderModalContent(m, isEditing) {
       ${isEditing ? `<input type="number" id="edit-pct-cuat" value="${m.pctCuatrienio}" class="modal-input-pct">%` : `<div class="modal-progress-track"><div class="modal-progress-fill blue" style="width:${Math.min(m.pctCuatrienio, 100)}%"></div></div>`}
     </div>
     <div class="modal-actions">
-      ${isAdmin ? (isEditing ? 
+      ${isEditing ? 
         `<button class="btn-save" onclick="saveMeta(${m.id})">Guardar</button>
          <button class="btn-cancel" onclick="renderModalContent(currentData.find(x=>x.id===${m.id}), false)">Cancelar</button>` : 
-        `<button class="btn-edit" onclick="renderModalContent(currentData.find(x=>x.id===${m.id}), true)">Editar</button>`) : ''}
+        `<button class="btn-edit admin-only" onclick="renderModalContent(currentData.find(x=>x.id===${m.id}), true)">Editar</button>`}
     </div>
   `;
   document.getElementById('modal-body').innerHTML = content;
