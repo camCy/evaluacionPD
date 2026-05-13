@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta name="description" content="Sistema de Gerencia del Plan de Desarrollo - Seguimiento a Metas de Producto Vigencia 2025 del Departamento de Risaralda">
+  <meta name="theme-color" content="#1a5c2e">
+  <title>Metas de Producto 2025 | Departamento de Risaralda</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="main-header" id="main-header">
+    <div class="header-content">
+      <div class="header-brand">
+        <img src="logo.png" alt="Escudo del Departamento de Risaralda" class="header-logo" id="header-logo">
+        <div class="header-titles">
+          <h1 class="header-title">Sistema de Gerencia Plan de Desarrollo</h1>
+          <p class="header-subtitle">Metas de Producto · Evaluación Vigencia 2025</p>
+        </div>
+      </div>
+      <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Abrir menú">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="main-nav" id="main-nav">
+    <div class="nav-content">
+      <button class="nav-tab active" data-view="dashboard" id="nav-dashboard">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span>Dashboard</span>
+      </button>
+      <button class="nav-tab" data-view="secretarias" id="nav-secretarias">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>Secretarías</span>
+      </button>
+      <button class="nav-tab" data-view="charts" id="nav-charts">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Gráficas</span>
+      </button>
+      <button class="nav-tab" data-view="upload" id="nav-upload">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span>Datos</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Search Bar -->
+  <div class="search-container" id="search-container">
+    <div class="search-wrapper">
+      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="search" class="search-input" id="search-input" placeholder="Buscar metas por código, referencia, programa..." autocomplete="off">
+      <button class="search-clear" id="search-clear" aria-label="Limpiar búsqueda">&times;</button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="main-content" id="main-content">
+
+    <!-- ===== DASHBOARD VIEW ===== -->
+    <section class="view view-dashboard active" id="view-dashboard">
+      <!-- KPI Cards -->
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card kpi-total" id="kpi-total">
+          <div class="kpi-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </div>
+          <div class="kpi-value" id="kpi-total-value">0</div>
+          <div class="kpi-label">Total Metas</div>
+        </div>
+        <div class="kpi-card kpi-green" id="kpi-green">
+          <div class="kpi-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div class="kpi-value" id="kpi-green-value">0</div>
+          <div class="kpi-label">Cumplimiento ≥85%</div>
+        </div>
+        <div class="kpi-card kpi-yellow" id="kpi-yellow">
+          <div class="kpi-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="kpi-value" id="kpi-yellow-value">0</div>
+          <div class="kpi-label">Entre 50% y 85%</div>
+        </div>
+        <div class="kpi-card kpi-red" id="kpi-red">
+          <div class="kpi-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+          <div class="kpi-value" id="kpi-red-value">0</div>
+          <div class="kpi-label">Menor a 50%</div>
+        </div>
+      </div>
+
+      <!-- Average Compliance -->
+      <div class="avg-compliance-card" id="avg-compliance-card">
+        <h2 class="section-title">Promedio de Cumplimiento General</h2>
+        <div class="avg-row">
+          <div class="avg-item" onclick="window.editGeneral('pct2025')" style="cursor:pointer" title="Haga clic para ajustar manualmente">
+            <span class="avg-label">Vigencia 2025 (Clic para ajustar)</span>
+            <div class="avg-progress-wrapper">
+              <div class="avg-progress-bar" id="avg-bar-2025" style="--progress: 0%">
+                <span class="avg-progress-text" id="avg-text-2025">0%</span>
+              </div>
+            </div>
+          </div>
+          <div class="avg-item" onclick="window.editGeneral('pctCuat')" style="cursor:pointer" title="Haga clic para ajustar manualmente">
+            <span class="avg-label">Cuatrienio 2024-2027 (Clic para ajustar)</span>
+            <div class="avg-progress-wrapper">
+              <div class="avg-progress-bar cuatrienio" id="avg-bar-cuatrienio" style="--progress: 0%">
+                <span class="avg-progress-text" id="avg-text-cuatrienio">0%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Secretarías Summary -->
+      <div class="dashboard-section" id="dashboard-secretarias">
+        <h2 class="section-title">Cumplimiento por Secretaría</h2>
+        <div class="secretaria-bars" id="secretaria-bars">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Dimensiones Summary -->
+      <div class="dashboard-section" id="dashboard-dimensiones">
+        <h2 class="section-title">Distribución por Dimensión</h2>
+        <div class="dimension-grid" id="dimension-grid">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SECRETARÍAS VIEW ===== -->
+    <section class="view view-secretarias" id="view-secretarias">
+      <div class="secretaria-selector-container">
+        <label for="secretaria-select" class="selector-label">Seleccionar Secretaría</label>
+        <div class="custom-select-wrapper">
+          <select id="secretaria-select" class="secretaria-select">
+            <option value="">-- Todas las Secretarías --</option>
+          </select>
+          <svg class="select-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+
+      <div class="results-info" id="results-info">
+        <span id="results-count">273 metas</span>
+        <div class="results-filters" id="results-filters"></div>
+      </div>
+
+      <div class="metas-container" id="metas-container">
+        <!-- Rendered by JS -->
+      </div>
+    </section>
+
+    <!-- ===== CHARTS VIEW ===== -->
+    <section class="view view-charts" id="view-charts">
+      <div class="charts-grid">
+        <div class="chart-card" id="chart-card-secretaria">
+          <h2 class="chart-title">Cumplimiento Promedio por Secretaría (Vigencia 2025)</h2>
+          <div class="chart-container">
+            <canvas id="chart-secretaria"></canvas>
+          </div>
+        </div>
+        <div class="chart-card" id="chart-card-dimension">
+          <h2 class="chart-title">Metas por Dimensión</h2>
+          <div class="chart-container chart-container-sm">
+            <canvas id="chart-dimension"></canvas>
+          </div>
+        </div>
+        <div class="chart-card" id="chart-card-status">
+          <h2 class="chart-title">Estado de Cumplimiento (Vigencia 2025)</h2>
+          <div class="chart-container chart-container-sm">
+            <canvas id="chart-status"></canvas>
+          </div>
+        </div>
+        <div class="chart-card" id="chart-card-cuatrienio">
+          <h2 class="chart-title">Comparativo: Vigencia 2025 vs Cuatrienio por Secretaría</h2>
+          <div class="chart-container">
+            <canvas id="chart-cuatrienio"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== UPLOAD VIEW ===== -->
+    <section class="view view-upload" id="view-upload">
+      <div class="upload-card" id="upload-card">
+        <div class="upload-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <h2 class="upload-title">Cargar Nuevo Archivo Excel</h2>
+        <p class="upload-desc">Selecciona un archivo .xlsx con la misma estructura de columnas para actualizar los datos.</p>
+        <div class="upload-dropzone" id="upload-dropzone">
+          <input type="file" id="file-input" accept=".xlsx,.xls" hidden>
+          <p class="dropzone-text">Arrastra tu archivo aquí o <button class="dropzone-btn" id="dropzone-btn">selecciona un archivo</button></p>
+          <p class="dropzone-hint">.xlsx · Máximo 10MB</p>
+        </div>
+        <div class="upload-status" id="upload-status" hidden>
+          <div class="upload-spinner"></div>
+          <span>Procesando archivo...</span>
+        </div>
+        <div class="upload-result" id="upload-result" hidden></div>
+      </div>
+
+      <div class="upload-card" id="manual-entry-card">
+        <h2 class="upload-title">Insertar Registro Manual</h2>
+        <p class="upload-desc">Agrega una nueva meta de producto al conjunto de datos actual.</p>
+        <form id="manual-form" class="manual-form">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="f-codigo">Código Meta</label>
+              <input type="text" id="f-codigo" placeholder="Ej: IP-274" required>
+            </div>
+            <div class="form-group">
+              <label for="f-secretaria">Secretaría</label>
+              <select id="f-secretaria" required>
+                <option value="">Seleccionar...</option>
+              </select>
+            </div>
+            <div class="form-group form-group-full">
+              <label for="f-referencia">Referencia Meta</label>
+              <textarea id="f-referencia" rows="2" placeholder="Descripción de la meta..." required></textarea>
+            </div>
+            <div class="form-group">
+              <label for="f-dimension">Dimensión</label>
+              <select id="f-dimension" required>
+                <option value="">Seleccionar...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="f-sector">Sector</label>
+              <input type="text" id="f-sector" placeholder="Ej: EDUCACIÓN">
+            </div>
+            <div class="form-group">
+              <label for="f-programado">Programado 2025</label>
+              <input type="number" id="f-programado" step="any" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label for="f-linea-base">Línea Base</label>
+              <input type="text" id="f-linea-base" placeholder="Ej: 14">
+            </div>
+            <div class="form-group">
+              <label for="f-logro">Logro 2025</label>
+              <input type="number" id="f-logro" step="any" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label for="f-pct2025">% Cumplimiento 2025</label>
+              <input type="number" id="f-pct2025" step="0.1" min="0" max="100" placeholder="0-100">
+            </div>
+            <div class="form-group">
+              <label for="f-meta-cuatrienio">Meta Cuatrienio</label>
+              <input type="number" id="f-meta-cuatrienio" step="any" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label for="f-pct-cuatrienio">% Cuatrienio</label>
+              <input type="number" id="f-pct-cuatrienio" step="0.1" min="0" max="100" placeholder="0-100">
+            </div>
+            <div class="form-group form-group-full">
+              <label for="f-programa">Programa</label>
+              <input type="text" id="f-programa" placeholder="Ej: Programa - 1903011 - ...">
+            </div>
+            <div class="form-group form-group-full">
+              <label for="f-objetivo">Objetivo</label>
+              <textarea id="f-objetivo" rows="2" placeholder="Objetivo de la meta..."></textarea>
+            </div>
+            <div class="form-group form-group-full">
+              <label for="f-producto">Producto</label>
+              <input type="text" id="f-producto" placeholder="Ej: 1903011 - Servicio de...">
+            </div>
+            <div class="form-group form-group-full">
+              <label for="f-indicador">Indicador de Producto</label>
+              <input type="text" id="f-indicador" placeholder="Ej: 190301100 - Municipios con...">
+            </div>
+          </div>
+          <button type="submit" class="btn-submit" id="btn-submit-manual">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Agregar Meta
+          </button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <!-- Detail Modal -->
+  <div class="modal-overlay" id="modal-overlay" hidden>
+    <div class="modal" id="modal" role="dialog" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-title"></h2>
+        <button class="modal-close" id="modal-close" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
