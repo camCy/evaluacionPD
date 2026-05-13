@@ -536,14 +536,14 @@ function DataCenterModal({ onClose, onRefresh }) {
               if (vCuat <= 1.1 && vCuat > 0) vCuat *= 100;
             } else if (progCuat > 0) vCuat = (logrCuat / progCuat) * 100;
 
-            // Datos de texto (ignoramos validación numérica)
-            const sec = findCol(row, ["SECRETARIA", "DEPENDENCIA", "ENTIDAD", "DIRECCION"], false) || row._sheetName || "GENERAL";
-            const dim = findCol(row, ["DIMENSION", "EJE", "ESTRATEGICO"], false) || "GENERAL";
+            // Datos de texto (Prioridad absoluta a Entidad Responsable para agrupar bien)
+            const sec = findCol(row, ["ENTIDAD RESPONSABLE", "ENTIDAD R", "SECRETARIA", "DEPENDENCIA", "DIRECCION"], false) || row._sheetName || "GENERAL";
+            const dim = findCol(row, ["DIMENSION", "EJE", "ESTRATEGICO", "LINEA ESTRATEGICA"], false) || "GENERAL";
             const progName = findCol(row, ["PROGRAMA"], false) || "";
 
             return {
               id: idx + 1,
-              codigo: findCol(row, ["CODIGO META", "CODIGO", "META"], false) || `M-${idx}`,
+              codigo: findCol(row, ["CODIGO META", "CODIGO INTERNO META", "CODIGO", "META"], false) || `M-${idx}`,
               referencia: findCol(row, ["REFERENCIA", "REF", "DESCRIPCION"], false) || "",
               programado2025: prog25,
               linea_base: String(findCol(row, ["LINEA BASE"], false) || ""),
@@ -551,8 +551,8 @@ function DataCenterModal({ onClose, onRefresh }) {
               pct_cumplimiento2025: v25,
               meta_cuatrienio: progCuat,
               pct_cuatrienio: vCuat,
-              secretaria: sec,
-              dimension: dim,
+              secretaria: String(sec).toUpperCase().trim(),
+              dimension: String(dim).toUpperCase().trim(),
               programa: progName,
               objetivo: findCol(row, ["OBJETIVO"], false) || "",
               sector: findCol(row, ["SECTOR"], false) || "",
