@@ -488,26 +488,46 @@ function DataCenterModal({ onClose, onRefresh }) {
             return cod && !cod.includes("TOTAL");
           })
           .map((row, idx) => {
-            // Extraer valores crudos
-            const rawV25 = findCol(row, "VIGENCIA 2025", "AVANCE 2025", "LOGRO 2025", "2025");
-            const rawCuat = findCol(row, "2024-2027", "CUATRIENIO", "AVANCE TOTAL", "TOTAL");
-            
-            // Procesar porcentajes (sin redondear, precisión total)
-            let v25 = parseNum(rawV25);
-            if (v25 <= 1.1 && v25 > 0) v25 *= 100; // Si es decimal 0.94 -> 94
+            // 1. Extraer valores base
+            const prog25 = parseNum(findCol(row, "PROGRAMADO 2025", "META 2025", "PLANIFICADO 2025"));
+            const logr25 = parseNum(findCol(row, "LOGRO 2025", "EJECUTADO 2025", "AVANCE 2025", "REAL 2025"));
+            const rawPct25 = findCol(row, "% CUMPLIMIENTO 2025", "CUMPLIMIENTO VIGENCIA", "PCT 2025");
 
-            let vCuat = parseNum(rawCuat);
-            if (vCuat <= 1.1 && vCuat > 0) vCuat *= 100;
+            const progCuat = parseNum(findCol(row, "META CUATRIENIO", "TOTAL PROGRAMADO", "META TOTAL"));
+            const logrCuat = parseNum(findCol(row, "LOGRO CUATRIENIO", "AVANCE TOTAL", "REAL TOTAL"));
+            const rawPctCuat = findCol(row, "% CUMPLIMIENTO CUATRIENIO", "CUMPLIMIENTO TOTAL", "PCT TOTAL");
+
+            // 2. Determinar porcentaje de Vigencia 2025
+            let v25 = 0;
+            if (rawPct25 !== null && rawPct25 !== undefined) {
+              v25 = parseNum(rawPct25);
+              if (v25 <= 1.1 && v25 > 0) v25 *= 100;
+            } else if (prog25 > 0) {
+              v25 = (logr25 / prog25) * 100;
+            } else if (logr25 > 0) {
+              v25 = 100; // Si no había meta pero se logró algo, es 100%
+            }
+
+            // 3. Determinar porcentaje de Cuatrienio
+            let vCuat = 0;
+            if (rawPctCuat !== null && rawPctCuat !== undefined) {
+              vCuat = parseNum(rawPctCuat);
+              if (vCuat <= 1.1 && vCuat > 0) vCuat *= 100;
+            } else if (progCuat > 0) {
+              vCuat = (logrCuat / progCuat) * 100;
+            } else if (logrCuat > 0) {
+              vCuat = 100;
+            }
 
             return {
               id: idx + 1,
               codigo: findCol(row, "CODIGO META", "CODIGO", "META"),
               referencia: findCol(row, "REFERENCIA", "REF") || "",
-              programado2025: parseNum(findCol(row, "PROGRAMADO 2025", "META 2025")),
+              programado2025: prog25,
               linea_base: String(findCol(row, "LINEA BASE", "BASE") || ""),
-              logro2025: parseNum(findCol(row, "LOGRO 2025", "EJECUTADO 2025")),
+              logro2025: logr25,
               pct_cumplimiento2025: v25,
-              meta_cuatrienio: parseNum(findCol(row, "META CUATRIENIO", "META TOTAL")),
+              meta_cuatrienio: progCuat,
               pct_cuatrienio: vCuat,
               secretaria: findCol(row, "SECRETARIA", "DEPENDENCIA", "ENTIDAD") || "SIN ASIGNAR",
               dimension: findCol(row, "DIMENSION", "EJE", "ESTRATEGICO") || "GENERAL",
